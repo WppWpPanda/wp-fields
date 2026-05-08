@@ -7,6 +7,8 @@
 
 namespace FieldForm\Core;
 
+use FieldForm\Core\Abstract_Field_Type;
+
 class Field_Types_Manager {
     
     /**

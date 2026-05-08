@@ -1,1 +1,52 @@
-(field-types/phone/config.php, field-types/phone/field.php, field-types/phone/template.php, README.md, core/class-field-types-manager.php, docs/adding-field-type.md, field-types/email/field.php, field-types/select/field.php, field-types/text/field.php, fieldform-builder.php)
+```php
+# Compiled and build artifacts
+*.pyc
+__pycache__/
+*.o
+*.obj
+*.class
+*.exe
+*.dll
+*.so
+*.a
+*.out
+
+# Dependencies
+node_modules/
+venv/
+.venv/
+.env
+.env.local
+.env.*
+
+# Build directories
+dist/
+build/
+target/
+*.min.js
+*.min.css
+
+# Logs and temp files
+*.log
+*.tmp
+*.swp
+*.swo
+
+# Editors
+.vscode/
+.idea/
+
+# Coverage
+coverage/
+htmlcov/
+.coverage
+
+# OS specific
+.DS_Store
+Thumbs.db
+
+# Cache directories
+.mypy_cache/
+.pytest_cache/
+.gradle/
+```
