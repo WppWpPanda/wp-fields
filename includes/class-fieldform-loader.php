@@ -117,7 +117,7 @@ class FieldForm_Loader {
         wp_enqueue_script(
             'fieldform-admin',
             FIELDFORM_PLUGIN_URL . 'assets/js/admin.js',
-            ['jquery', 'jquery-ui-sortable'],
+            ['jquery', 'jquery-ui-sortable', 'jquery-ui-draggable', 'jquery-ui-droppable'],
             FIELDFORM_VERSION,
             true
         );
