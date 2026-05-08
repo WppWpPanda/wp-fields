@@ -60,6 +60,10 @@ spl_autoload_register(function ($class) {
     }
 });
 
+// Загрузка абстрактного класса поля ДО загрузки других классов
+require_once FIELDFORM_PLUGIN_DIR . 'core/class-abstract-field-type.php';
+require_once FIELDFORM_PLUGIN_DIR . 'core/class-field-types-manager.php';
+
 // Загрузка ядра плагина
 require_once FIELDFORM_PLUGIN_DIR . 'includes/class-fieldform-loader.php';
 require_once FIELDFORM_PLUGIN_DIR . 'includes/class-fieldform-activator.php';
