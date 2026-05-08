@@ -5,11 +5,15 @@
  * @package FieldForm\FieldTypes\Email
  */
 
+namespace FieldForm\FieldTypes\Email;
+
+use FieldForm\Core\Abstract_Field_Type;
+
 if (!defined('ABSPATH')) {
     exit;
 }
 
-class FieldForm_Field_Email extends \FieldForm\Core\Abstract_Field_Type {
+class Field_Email extends Abstract_Field_Type {
     
     /**
      * Получить тип поля

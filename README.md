@@ -80,11 +80,21 @@ return [
 
 ```php
 <?php
+/**
+ * Класс поля типа "Your Field Type"
+ * 
+ * @package FieldForm\FieldTypes\YourFieldType
+ */
+
+namespace FieldForm\FieldTypes\YourFieldType;
+
+use FieldForm\Core\Abstract_Field_Type;
+
 if (!defined('ABSPATH')) {
     exit;
 }
 
-class FieldForm_Field_YourFieldType extends \FieldForm\Core\Abstract_Field_Type {
+class Field_YourFieldType extends Abstract_Field_Type {
     
     public function get_type() {
         return 'your-field-type';
