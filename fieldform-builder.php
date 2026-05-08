@@ -28,7 +28,7 @@ define('FIELDFORM_PLUGIN_BASENAME', plugin_basename(__FILE__));
 // Автозагрузка классов (PSR-4)
 spl_autoload_register(function ($class) {
     $prefix = 'FieldForm\\';
-    $base_dir = FIELDFORM_PLUGIN_DIR . 'core/';
+    $base_dir = FIELDFORM_PLUGIN_DIR;
 
     $len = strlen($prefix);
     if (strncmp($prefix, $class, $len) !== 0) {
@@ -36,7 +36,24 @@ spl_autoload_register(function ($class) {
     }
 
     $relative_class = substr($class, $len);
-    $file = $base_dir . str_replace('\\', '/', $relative_class) . '.php';
+
+    // Определение пути в зависимости от пространства имен
+    if (strpos($relative_class, 'Core\\') === 0) {
+        $file = $base_dir . 'core/' . str_replace('\\', '/', substr($relative_class, 5)) . '.php';
+    } elseif (strpos($relative_class, 'Includes\\') === 0) {
+        $file = $base_dir . 'includes/' . str_replace('\\', '/', substr($relative_class, 9)) . '.php';
+    } elseif (strpos($relative_class, 'FieldTypes\\') === 0) {
+        // Для типов полей: FieldForm\FieldTypes\Text\Field_Text -> field-types/text/field.php
+        $parts = explode('\\', $relative_class);
+        if (count($parts) >= 3) {
+            $type_name = strtolower($parts[1]); // Text, Email, etc.
+            $file = $base_dir . 'field-types/' . $type_name . '/field.php';
+        } else {
+            return;
+        }
+    } else {
+        return;
+    }
 
     if (file_exists($file)) {
         require $file;

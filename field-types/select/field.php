@@ -5,11 +5,15 @@
  * @package FieldForm\FieldTypes\Select
  */
 
+namespace FieldForm\FieldTypes\Select;
+
+use FieldForm\Core\Abstract_Field_Type;
+
 if (!defined('ABSPATH')) {
     exit;
 }
 
-class FieldForm_Field_Select extends \FieldForm\Core\Abstract_Field_Type {
+class Field_Select extends Abstract_Field_Type {
     
     /**
      * Получить тип поля

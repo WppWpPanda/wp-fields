@@ -55,11 +55,11 @@ class Field_Types_Manager {
             // Загрузка класса поля
             require_once $field_file;
             
-            // Получение имени класса из config
+            // Получение конфигурации
             $config = include $config_file;
             
-            // Попытка найти класс поля (имя класса должно быть Field_{Type})
-            $class_name = 'FieldForm_Field_' . ucfirst($type_name);
+            // Формирование имени класса в пространстве имен
+            $class_name = 'FieldForm\\FieldTypes\\' . ucfirst($type_name) . '\\Field_' . ucfirst($type_name);
             
             if (class_exists($class_name)) {
                 $field_instance = new $class_name();

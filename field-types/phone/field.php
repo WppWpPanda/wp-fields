@@ -1,54 +1,3 @@
-# Добавление нового типа поля в FieldForm Builder
-
-В этом документе описан пошаговый процесс создания собственного типа поля для плагина FieldForm Builder.
-
-## Архитектура системы типов полей
-
-Каждый тип поля представляет собой отдельную папку в директории `field-types/` и содержит:
-
-- `config.php` — мета-данные и настройки по умолчанию
-- `field.php` — класс с логикой рендера и валидации
-- `template.php` (опционально) — шаблон для фронтенда
-
-## Пример: Создание поля "Телефон" с маской ввода
-
-### Шаг 1: Создание структуры папок
-
-```bash
-cd /wp-content/plugins/fieldform-builder/field-types/
-mkdir phone
-```
-
-### Шаг 2: Создание config.php
-
-Создайте файл `field-types/phone/config.php`:
-
-```php
-<?php
-/**
- * Конфигурация типа поля "Phone"
- * 
- * @package FieldForm\FieldTypes\Phone
- */
-
-return [
-    'name'        => __('Телефон', 'fieldform-builder'),
-    'category'    => 'basic',
-    'icon'        => 'dashicons-phone',
-    'has_options' => true,
-    'default_args'=> [
-        'placeholder'   => '+7 (___) ___-__-__',
-        'mask'          => '+9 (999) 999-99-99',
-        'country_code'  => '+7',
-    ],
-];
-```
-
-### Шаг 3: Создание field.php
-
-Создайте файл `field-types/phone/field.php`:
-
-```php
 <?php
 /**
  * Класс поля типа "Phone"
@@ -76,6 +25,9 @@ class Field_Phone extends Abstract_Field_Type {
     
     /**
      * Рендер настроек поля в админке
+     * @param int $field_id ID поля
+     * @param array $saved_value Сохранённые значения
+     * @return string HTML
      */
     public function render_admin_options($field_id, $saved_value = []) {
         $defaults = $this->config['default_args'];
@@ -124,6 +76,9 @@ class Field_Phone extends Abstract_Field_Type {
     
     /**
      * Рендер поля на фронтенде
+     * @param array $field Настройки поля
+     * @param mixed $value Значение
+     * @return string HTML
      */
     public function render_frontend($field, $value = '') {
         $field_id = isset($field['id']) ? $field['id'] : 'field_' . uniqid();
@@ -148,6 +103,15 @@ class Field_Phone extends Abstract_Field_Type {
             );
         }
         
+        $template_path = $this->get_template_path();
+        
+        if ($template_path && file_exists($template_path)) {
+            ob_start();
+            include $template_path;
+            return ob_get_clean();
+        }
+        
+        // Рендер по умолчанию, если шаблона нет
         ob_start();
         ?>
         <div class="field-wrapper field-type-phone" data-field-id="<?php echo esc_attr($field['id']); ?>">
@@ -180,6 +144,9 @@ class Field_Phone extends Abstract_Field_Type {
     
     /**
      * Валидация значения
+     * @param mixed $value Значение
+     * @param array $field_settings Настройки поля
+     * @return \WP_Error|true
      */
     public function validate($value, $field_settings) {
         // Проверка на обязательность
@@ -206,109 +173,12 @@ class Field_Phone extends Abstract_Field_Type {
     
     /**
      * Санитизация значения
+     * @param mixed $value Значение
+     * @param array $field_settings Настройки
+     * @return string
      */
     public function sanitize($value, $field_settings) {
         // Очищаем от лишних символов, оставляем только цифры и +
         return preg_replace('/[^\d+]/', '', $value);
     }
 }
-```
-
-### Шаг 4: (Опционально) Создание template.php
-
-Создайте файл `field-types/phone/template.php`:
-
-```php
-<?php
-/**
- * Шаблон поля Phone для фронтенда
- * Может быть переопределён в теме: /your-theme/fieldform/fields/phone/template.php
- */
-
-if (!defined('ABSPATH')) {
-    exit;
-}
-?>
-<div class="field-wrapper field-type-phone" data-field-id="<?php echo esc_attr($field['id']); ?>">
-    <?php if ($label): ?>
-        <label for="<?php echo esc_attr($field_id); ?>" class="field-label">
-            <?php echo esc_html($label); ?><?php echo $required_mark; ?>
-        </label>
-    <?php endif; ?>
-    <input type="tel" 
-           id="<?php echo esc_attr($field_id); ?>" 
-           name="<?php echo esc_attr($field_name); ?>" 
-           value="<?php echo esc_attr($value); ?>" 
-           placeholder="<?php echo $placeholder; ?>" 
-           data-mask="<?php echo $mask; ?>"
-           <?php echo $required; ?>
-           class="field-input field-phone-input">
-</div>
-```
-
-### Шаг 5: Проверка работы
-
-1. Перезагрузите страницу админки **FieldForm Builder**
-2. В боковой панели должен появиться новый тип поля **"Телефон"** с иконкой телефона
-3. Перетащите поле на форму и настройте его
-
-## Советы по разработке
-
-### 1. Именование класса
-
-Класс должен находиться в пространстве имён `FieldForm\FieldTypes\{TypeName}\` и называться `Field_{TypeName}`:
-
-- `text` → `FieldForm\FieldTypes\Text\Field_Text`
-- `phone` → `FieldForm\FieldTypes\Phone\Field_Phone`
-- `phone_number` → `FieldForm\FieldTypes\Phone_Number\Field_Phone_Number`
-
-Файл должен быть расположен: `field-types/{type}/field.php`
-
-### 2. Категории полей
-
-Доступные категории:
-- `basic` — базовые поля (текст, email, телефон)
-- `choice` — поля выбора (select, radio, checkbox)
-- `advanced` — продвинутые поля (дата, файл, rich text)
-
-### 3. Иконки Dashicons
-
-Популярные иконки:
-- `dashicons-editor-text` — текст
-- `dashicons-email` — email
-- `dashicons-phone` — телефон
-- `dashicons-menu` — выбор
-- `dashicons-calendar` — дата
-- `dashicons-upload` — загрузка файла
-
-### 4. Переопределение в теме
-
-Пользователь может переопределить шаблон любого поля, создав файл:
-```
-/your-theme/fieldform/fields/{type}/template.php
-```
-
-### 5. Программная регистрация
-
-Альтернативно можно зарегистрировать поле через хук:
-
-```php
-add_action('init', function() {
-    require_once __DIR__ . '/my-custom-field.php';
-    $instance = new FieldForm_Field_MyCustom();
-    do_action('fieldform/register_custom_field_type', 'my-custom', $instance);
-});
-```
-
-## Отладка
-
-Если поле не появляется:
-
-1. Проверьте наличие `config.php` и `field.php`
-2. Убедитесь, что класс назван правильно
-3. Проверьте логи PHP на наличие ошибок
-4. Очистите кеш объектом WordPress: `wp cache flush`
-
-## Дополнительные примеры
-
-Смотрите реализацию полей `text`, `email`, `select` в папке `field-types/`.
