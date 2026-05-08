@@ -69,6 +69,11 @@ require_once FIELDFORM_PLUGIN_DIR . 'includes/class-fieldform-loader.php';
 require_once FIELDFORM_PLUGIN_DIR . 'includes/class-fieldform-activator.php';
 require_once FIELDFORM_PLUGIN_DIR . 'includes/class-fieldform-deactivator.php';
 
+// Загрузка административного модуля
+if (is_admin()) {
+    require_once FIELDFORM_PLUGIN_DIR . 'includes/admin/class-fieldform-admin.php';
+}
+
 // Инициализация плагина
 function fieldform_init() {
     $loader = new FieldForm\Includes\FieldForm_Loader();

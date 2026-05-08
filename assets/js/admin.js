@@ -1,262 +1,273 @@
 /**
  * FieldForm Builder - Admin JavaScript
- * 
+ *
  * @package FieldForm\Assets
  */
 
 (function($) {
     'use strict';
-    
-    var FieldFormBuilder = {
-        
-        fields: [],
-        currentFieldId: null,
-        
+
+    const FieldFormBuilder = {
+        formId: null,
+        fieldsContainer: null,
+        paletteContainer: null,
+
         init: function() {
+            this.formId = $('#fieldform-builder-form-id').val();
+            this.fieldsContainer = $('#fieldform-fields-container');
+            this.paletteContainer = $('.fieldform-palette-items');
+
             this.initDragAndDrop();
-            this.initEventListeners();
-            this.initSortable();
+            this.bindEvents();
+            this.loadFields(); // Загружаем существующие поля при старте
         },
-        
-        /**
-         * Инициализация Drag-and-Drop
-         */
+
         initDragAndDrop: function() {
-            $('.field-type-item').draggable({
+            // Элементы палитры можно перетаскивать
+            this.paletteContainer.find('.fieldform-palette-item').draggable({
                 helper: 'clone',
                 revert: 'invalid',
-                zIndex: 10000,
-                appendTo: 'body'
+                connectToSortable: this.fieldsContainer,
+                zIndex: 1000
             });
-            
-            $('#fields-container').droppable({
-                accept: '.field-type-item',
-                activeClass: 'ui-droppable-active',
-                hoverClass: 'ui-droppable-hover',
-                drop: $.proxy(this.handleFieldDrop, this)
+
+            // Контейнер полей принимает элементы и позволяет сортировать
+            this.fieldsContainer.sortable({
+                placeholder: 'fieldform-field-placeholder',
+                forcePlaceholderSize: true,
+                receive: function(event, ui) {
+                    // Когда элемент брошен из палитры
+                    const type = ui.item.data('type');
+                    if (type) {
+                        FieldFormBuilder.addNewField(type);
+                    }
+                }
             });
         },
-        
-        /**
-         * Обработка падения поля
-         */
-        handleFieldDrop: function(event, ui) {
-            var fieldType = ui.helper.data('type');
-            var fieldName = ui.helper.find('.field-name').text();
-            this.addNewField(fieldType, fieldName);
+
+        bindEvents: function() {
+            // Клик по полю для открытия настроек
+            $(document).on('click', '.fieldform-field-item', function(e) {
+                // Игнорируем клик на кнопке удаления
+                if ($(e.target).closest('.remove-field').length) return;
+                
+                const fieldId = $(this).data('field-id');
+                FieldFormBuilder.openFieldSettings(fieldId);
+            });
+
+            // Удаление поля
+            $(document).on('click', '.remove-field', function(e) {
+                e.stopPropagation();
+                if (confirm('Вы уверены, что хотите удалить это поле?')) {
+                    $(this).closest('.fieldform-field-item').remove();
+                }
+            });
+
+            // Сохранение настроек в модальном окне
+            $(document).on('click', '#save-field-settings-btn', function() {
+                FieldFormBuilder.saveFieldSettings();
+            });
+
+            // Закрытие модального окна
+            $(document).on('click', '.fieldform-modal-close, .fieldform-modal-overlay', function() {
+                FieldFormBuilder.closeModal();
+            });
+
+            // Сохранение всей формы
+            $('#save-fieldform-form').on('click', function(e) {
+                e.preventDefault();
+                FieldFormBuilder.saveFormStructure();
+            });
         },
-        
-        /**
-         * Добавление нового поля
-         */
-        addNewField: function(type, name) {
-            var fieldId = 'field_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+
+        loadFields: function() {
+            if (!this.formId) return;
+
+            $.ajax({
+                url: ajaxurl,
+                type: 'POST',
+                data: {
+                    action: 'fieldform_get_fields',
+                    form_id: this.formId,
+                    nonce: fieldformAdminData.nonce
+                },
+                success: function(response) {
+                    if (response.success && response.data.length > 0) {
+                        response.data.forEach(function(field) {
+                            FieldFormBuilder.renderField(field, true);
+                        });
+                    }
+                },
+                error: function(xhr) {
+                    console.error('Ошибка загрузки полей:', xhr.responseText);
+                }
+            });
+        },
+
+        addNewField: function(type) {
+            const newFieldId = 'field_' + Date.now();
+            const defaultLabel = type.charAt(0).toUpperCase() + type.slice(1);
             
-            var fieldData = {
-                id: fieldId,
+            const fieldData = {
+                id: newFieldId,
                 type: type,
-                label: name || 'Новое поле',
+                label: defaultLabel,
                 required: false,
                 options: {}
             };
-            
-            this.fields.push(fieldData);
+
             this.renderField(fieldData);
-            this.hidePlaceholder();
+            // Сразу открываем настройки для нового поля
+            setTimeout(() => {
+                this.openFieldSettings(newFieldId);
+            }, 100);
         },
-        
-        /**
-         * Рендер поля в конструкторе
-         */
-        renderField: function(fieldData) {
-            var template = wp.template('fieldform-field-template');
-            var html = template(fieldData);
+
+        renderField: function(fieldData, isExisting = false) {
+            const template = wp.template('fieldform-field-item');
+            const html = template(fieldData);
             
-            var $fieldWrapper = $(html);
-            $('#fields-container').append($fieldWrapper);
-            
-            this.bindFieldEvents($fieldWrapper);
+            this.fieldsContainer.append(html);
         },
-        
-        /**
-         * Привязка событий к полю
-         */
-        bindFieldEvents: function($field) {
-            var self = this;
+
+        openFieldSettings: function(fieldId) {
+            const $fieldItem = $(`.fieldform-field-item[data-field-id="${fieldId}"]`);
+            if (!$fieldItem.length) return;
+
+            const type = $fieldItem.data('type');
+            const label = $fieldItem.find('.field-label').text() || '';
+            const required = $fieldItem.hasClass('required');
             
-            // Редактирование поля
-            $field.find('.edit-field').on('click', function() {
-                self.openFieldSettings($(this).closest('.fieldform-field-wrapper'));
-            });
-            
-            // Дублирование поля
-            $field.find('.duplicate-field').on('click', function() {
-                self.duplicateField($(this).closest('.fieldform-field-wrapper'));
-            });
-            
-            // Удаление поля
-            $field.find('.delete-field').on('click', function() {
-                self.deleteField($(this).closest('.fieldform-field-wrapper'));
-            });
+            const modalContent = `
+                <div class="fieldform-modal-content">
+                    <h3>Настройки поля: ${type}</h3>
+                    <input type="hidden" id="edit-field-id" value="${fieldId}">
+                    <input type="hidden" id="edit-field-type" value="${type}">
+                    
+                    <div class="form-group">
+                        <label>Подпись (Label)</label>
+                        <input type="text" id="edit-field-label" value="${label}" class="widefat">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Описание (Help Text)</label>
+                        <textarea id="edit-field-description" class="widefat"></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="edit-field-required" ${required ? 'checked' : ''}>
+                            Обязательное поле
+                        </label>
+                    </div>
+
+                    <div id="dynamic-field-options">
+                        <!-- Сюда можно подгрузить специфичные настройки типа -->
+                    </div>
+
+                    <div class="modal-actions">
+                        <button type="button" id="save-field-settings-btn" class="button button-primary">Сохранить</button>
+                        <button type="button" class="button fieldform-modal-close">Отмена</button>
+                    </div>
+                </div>
+            `;
+
+            $('#fieldform-settings-modal .fieldform-modal-body').html(modalContent);
+            $('#fieldform-settings-modal').show();
         },
-        
-        /**
-         * Открытие настроек поля
-         */
-        openFieldSettings: function($field) {
-            this.currentFieldId = $field.data('field-id');
-            var fieldType = $field.data('field-type');
-            
-            $('#settings-panel .fieldform-settings-content').html(
-                '<p>Загрузка настроек...</p>'
-            );
-            
-            // Загрузка настроек через AJAX
-            $.post(fieldformAdmin.ajaxUrl, {
-                action: 'fieldform_get_field_settings',
-                field_type: fieldType,
-                field_id: this.currentFieldId,
-                nonce: fieldformAdmin.nonce
-            }, function(response) {
-                if (response.success) {
-                    $('#settings-panel .fieldform-settings-content').html(response.data.html);
-                }
-            });
-        },
-        
-        /**
-         * Дублирование поля
-         */
-        duplicateField: function($field) {
-            var $clone = $field.clone();
-            var newId = 'field_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-            
-            $clone.attr('data-field-id', newId);
-            $clone.find('.fieldform-field-options').hide();
-            
-            $field.after($clone);
-            this.bindFieldEvents($clone);
-        },
-        
-        /**
-         * Удаление поля
-         */
-        deleteField: function($field) {
-            if (!confirm(fieldformAdmin.strings.confirmDelete)) {
+
+        saveFieldSettings: function() {
+            const fieldId = $('#edit-field-id').val();
+            const label = $('#edit-field-label').val();
+            const required = $('#edit-field-required').is(':checked');
+            const description = $('#edit-field-description').val();
+
+            if (!label) {
+                alert('Подпись поля обязательна');
                 return;
             }
+
+            // Обновляем вид карточки в списке
+            const $fieldItem = $(`.fieldform-field-item[data-field-id="${fieldId}"]`);
+            $fieldItem.find('.field-label').text(label);
             
-            var fieldId = $field.data('field-id');
-            
-            // Удаление из массива
-            this.fields = this.fields.filter(function(f) {
-                return f.id !== fieldId;
-            });
-            
-            $field.fadeOut(function() {
-                $(this).remove();
-                
-                // Показать placeholder если нет полей
-                if ($('.fieldform-field-wrapper').length === 0) {
-                    $('#fields-container').html(
-                        '<p class="fieldform-placeholder">Перетащите поля из боковой панели или нажмите на тип поля для добавления</p>'
-                    );
-                    FieldFormBuilder.initDragAndDrop();
-                }
-            });
-        },
-        
-        /**
-         * Скрытие placeholder
-         */
-        hidePlaceholder: function() {
-            $('.fieldform-placeholder').hide();
-        },
-        
-        /**
-         * Инициализация сортировки
-         */
-        initSortable: function() {
-            $('#fields-container').sortable({
-                handle: '.dashicons-move',
-                placeholder: 'fieldform-sortable-placeholder',
-                opacity: 0.7,
-                cursor: 'move'
-            });
-        },
-        
-        /**
-         * Инициализация обработчиков событий
-         */
-        initEventListeners: function() {
-            var self = this;
-            
-            // Сохранение формы
-            $('#save-form').on('click', function() {
-                self.saveForm();
-            });
-            
-            // Обновление метки поля при изменении
-            $(document).on('change', '#field_label', function() {
-                if (self.currentFieldId) {
-                    $('[data-field-id="' + self.currentFieldId + '"] .field-label-display')
-                        .text($(this).val() || 'Поле без названия');
-                }
-            });
-        },
-        
-        /**
-         * Сохранение формы
-         */
-        saveForm: function() {
-            var title = $('#form-title').val().trim();
-            
-            if (!title) {
-                alert('Введите название формы');
-                $('#form-title').focus();
-                return;
+            if (required) {
+                $fieldItem.addClass('required');
+                $fieldItem.find('.required-badge').show();
+            } else {
+                $fieldItem.removeClass('required');
+                $fieldItem.find('.required-badge').hide();
             }
             
-            // Сбор данных полей
-            var fieldsData = [];
-            $('.fieldform-field-wrapper').each(function(index) {
-                var $field = $(this);
-                fieldsData.push({
-                    id: $field.data('field-id'),
-                    type: $field.data('field-type'),
-                    sort_order: index
+            // Сохраняем данные в data-атрибуты
+            $fieldItem.data('label', label);
+            $fieldItem.data('required', required);
+            $fieldItem.data('description', description);
+
+            this.closeModal();
+        },
+
+        saveFormStructure: function() {
+            if (!this.formId) {
+                alert('Ошибка: ID формы не найден. Создайте новую форму сначала.');
+                return;
+            }
+
+            const fields = [];
+            this.fieldsContainer.find('.fieldform-field-item').each(function() {
+                const $el = $(this);
+                fields.push({
+                    id: $el.data('field-id'),
+                    type: $el.data('type'),
+                    label: $el.data('label') || $el.find('.field-label').text(),
+                    required: $el.data('required') || false,
+                    description: $el.data('description') || '',
+                    order: fields.length
                 });
             });
-            
-            var $btn = $('#save-form');
-            $btn.prop('disabled', true).text('Сохранение...');
-            
-            $.post(fieldformAdmin.ajaxUrl, {
-                action: 'fieldform_save_form',
-                title: title,
-                fields: fieldsData,
-                nonce: fieldformAdmin.nonce
-            }, function(response) {
-                if (response.success) {
-                    alert('Форма успешно сохранена! ID формы: ' + response.data.form_id);
-                    
-                    // Обновление шорткода
-                    var shortcode = '[fieldform id="' + response.data.form_id + '"]';
-                    console.log('Shortcode:', shortcode);
-                } else {
-                    alert('Ошибка при сохранении: ' + (response.data.message || 'Неизвестная ошибка'));
+
+            if (fields.length === 0) {
+                if(!confirm('Форма пуста. Вы хотите сохранить её без полей?')) return;
+            }
+
+            const btnSave = $('#save-fieldform-form');
+            const originalText = btnSave.text();
+            btnSave.prop('disabled', true).text('Сохранение...');
+
+            $.ajax({
+                url: ajaxurl,
+                type: 'POST',
+                data: {
+                    action: 'fieldform_save_form_structure',
+                    form_id: this.formId,
+                    fields: JSON.stringify(fields),
+                    nonce: fieldformAdminData.nonce
+                },
+                success: function(response) {
+                    btnSave.prop('disabled', false).text(originalText);
+                    if (response.success) {
+                        alert('Форма успешно сохранена!');
+                    } else {
+                        alert('Ошибка сохранения: ' + (response.data || 'Неизвестная ошибка'));
+                    }
+                },
+                error: function(xhr, status, error) {
+                    btnSave.prop('disabled', false).text(originalText);
+                    console.error(xhr.responseText);
+                    alert('Произошла ошибка сети: ' + error);
                 }
-                $btn.prop('disabled', false).text('Сохранить форму');
-            }).fail(function() {
-                alert('Произошла ошибка при сохранении формы');
-                $btn.prop('disabled', false).text('Сохранить форму');
             });
+        },
+
+        closeModal: function() {
+            $('#fieldform-settings-modal').hide();
         }
     };
-    
-    // Инициализация при загрузке документа
+
     $(document).ready(function() {
-        FieldFormBuilder.init();
+        if ($('#fieldform-builder-form-id').length) {
+            FieldFormBuilder.init();
+        }
     });
-    
+
 })(jQuery);

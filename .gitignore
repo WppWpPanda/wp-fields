@@ -4,7 +4,7 @@ __pycache__/
 
 # Dependencies
 vendor/
-composer.lock
+node_modules/
 
 # Logs and temp files
 *.log
@@ -19,3 +19,9 @@ composer.lock
 # Editors
 .vscode/
 .idea/
+
+# Build and distribution
+dist/
+build/
+*.min.js
+*.min.css
